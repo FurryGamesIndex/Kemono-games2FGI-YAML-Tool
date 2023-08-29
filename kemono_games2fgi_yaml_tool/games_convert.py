@@ -1,17 +1,19 @@
-import requests
+import random
+
+from jsonschema import validate
 from loguru import logger
 from sm_ms_api import SMMS
-from jsonschema import validate
 from yaml import safe_load
-import functools, threading
-from .utils.setting import config
-from .exception import InvalidHTTPStatusCodeError
-from .utils.spider import get_text
 from .base_path import get_real_path
+from .utils.setting import config
+from .utils.spider import get_text
+from .utils.yaml_tool import dump_to_yaml
+import concurrent.futures
 
 
 def upload_img(path: str):
     smms = SMMS(token=config.sm_ms_token)
+    # sleep(random.randint(1, 7))
     res = smms.upload_image(path)
     print(res)
     return res
@@ -19,6 +21,7 @@ def upload_img(path: str):
 
 class Converter:
     fgi_tags: dict = {}
+    data: dict
 
     def __init__(self, name: str, yaml: dict = None, url: str = None):
         if not url:
@@ -27,10 +30,10 @@ class Converter:
             self.data = safe_load(get_text(url))
         self.name = name
 
-    def to_fgi_yaml(self) -> dict:
+    def to_fgi_yaml(self) -> str:
         if not self.validate_it():
             self.replace_yaml()
-        return self.data
+        return dump_to_yaml(self.data)
 
     def parse_tags(self, type_tag: str):
         if not self.fgi_tags:
@@ -53,14 +56,16 @@ class Converter:
             logger.warning("Unable to upload video, ignore...")
             return None
 
-        for i in self.data['screenshots']:
-            handle_item: dict | str | None = None
-            if 'type' in i and 'image:local' in i['type']:
-                handle_item = handle_img(i)
-            elif 'type' in i and 'video:local' in i['type']:
-                handle_vid(i)
-            if handle_item is not None:
-                self.data['screenshots'][self.data['screenshots'].index(i)] = handle_item
+        def process_chunk(chunk):
+            if 'type' in chunk and 'image:local' in chunk['type']:
+                return handle_img(chunk)
+            elif 'type' in chunk and 'video:local' in chunk['type']:
+                return handle_vid(chunk)
+            return chunk
+
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            new_screenshots = list(executor.map(process_chunk, self.data['screenshots']))
+            self.data['screenshots'] = new_screenshots
 
     def validate_it(self) -> bool:
         try:
