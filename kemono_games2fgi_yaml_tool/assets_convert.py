@@ -1,7 +1,7 @@
 from PIL import Image
 from io import BytesIO
 from .utils.setting import config
-
+from .base_path import get_assets_path
 
 # games/lvyunlu.yaml->authors/Ainro.yaml->assets/thumbnail.png->assets/_avatar/Ainro.jpg
 # 1. Determine whether there is a corresponding yaml
@@ -25,10 +25,16 @@ def can_resize_to(image, target_width, target_height):
         else:
             return False
 
+# With author file: compress the avatar file
+# No author file: return as is
+class AssetsConverter:
+    def __init__(self, author_list: list,assets: dict):
+        self.author_list = [i['name'] for i in author_list]
 
-def search_author(author: str):
-    pass
+    def is_author_yaml_exist(self):
+        pass
 
-
-def analyse(data: dict):
-    print(config.base_path)
+    def convert(self):
+        pass
+    def to_fgi_yaml(self):
+        pass

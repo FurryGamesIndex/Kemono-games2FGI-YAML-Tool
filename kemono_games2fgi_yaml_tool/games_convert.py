@@ -1,14 +1,16 @@
-import random
+import concurrent.futures
+from typing import Union
 
 from jsonschema import validate
 from loguru import logger
 from sm_ms_api import SMMS
 from yaml import safe_load
+
 from .base_path import get_real_path
+from .exception import UnsupportedTagList
 from .utils.setting import config
 from .utils.spider import get_text
 from .utils.yaml_tool import dump_to_yaml
-import concurrent.futures
 
 
 def upload_img(path: str):
@@ -19,9 +21,9 @@ def upload_img(path: str):
     return res
 
 
-class Converter:
-    fgi_tags: dict = {}
+class GameConverter:
     data: dict
+    tags: dict = {}
 
     def __init__(self, name: str, yaml: dict = None, url: str = None):
         if not url:
@@ -31,15 +33,17 @@ class Converter:
         self.name = name
 
     def to_fgi_yaml(self) -> str:
+        self.compare_tags()
+        logger.success("No conflicting tags")
         if not self.validate_it():
             self.replace_yaml()
         return dump_to_yaml(self.data)
 
-    def parse_tags(self, type_tag: str):
-        if not self.fgi_tags:
-            self.fgi_tags = safe_load(get_text('https://raw.githubusercontent.com/FurryGamesIndex/games/master/tags'
-                                               '.yaml'))
-        return [key for key, value in self.fgi_tags.items() if type_tag in value.get('namespaces', [])]
+    def parse_tags(self, type_tag: str, website: str = Union["FurryGamesIndex/games", "kemono-games/fgi"]):
+        if website not in self.tags:
+            self.tags[website] = safe_load(get_text(f'https://raw.githubusercontent.com/{website}/master/tags'
+                                                    '.yaml'))
+        return [key for key, value in self.tags[website].items() if type_tag in value.get('namespaces', [])]
 
     def replace_yaml(self):
         def handle_img(chunk: dict | str) -> dict | str:
@@ -74,4 +78,14 @@ class Converter:
                                         '.schema.yaml')))
             return True
         except:
+
             return False
+
+    def compare_tags(self):
+
+        cmp_list: list = ['type', 'species', 'fetish', 'misc', 'lang', 'publish', 'platform', 'sys']
+        for i in cmp_list:
+            fgi = set(self.parse_tags(i, 'FurryGamesIndex/games'))
+            kemono = set(self.parse_tags(i, 'kemono-games/fgi'))
+            if fgi != kemono:
+                raise UnsupportedTagList(kemono - fgi)
