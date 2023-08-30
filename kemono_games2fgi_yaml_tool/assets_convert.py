@@ -9,9 +9,9 @@ from .utils.setting import config
 # if it is still not possible, then logger.warning
 # 3. Compress the avatar to 64x64.
 
-def resize_image(input_data, output_path):
+def resize_image(input_data, output_path, size: tuple):
     with Image.open(BytesIO(input_data)) as img:
-        img.thumbnail((64, 64))
+        img.thumbnail(size)
         img.save(output_path)
 
 
@@ -24,6 +24,10 @@ def can_resize_to(image, target_width, target_height):
             return True
         else:
             return False
+
+
+def search_author(author: str):
+    pass
 
 
 def analyse(data: dict):
