@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "kemono-games2fgi-yaml-tool"
+version = "1.0.0"
+description = ""
+authors = ["kaesinol <keiplyer@gmail.com>"]
+readme = "README.md"
+packages = [{include = "kemono_games2fgi_yaml_tool"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pyyaml = "^6.0.1"
+jsonschema = "^4.19.0"
+ruamel-yaml = "^0.17.32"
+ruamel-yaml-string = "^0.1.1"
+loguru = "^0.7.0"
+pysocks = "^1.7.1"
+pillow = "^10.0.0"
+sm-ms-api = "^0.3.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
