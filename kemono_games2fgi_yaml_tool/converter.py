@@ -2,14 +2,14 @@ import concurrent.futures
 import threading
 from io import BytesIO
 from pathlib import Path
-from time import sleep, time
+from time import time, sleep
 from typing import Literal
 from shutil import copy
 from jsonschema import exceptions
 from jsonschema.exceptions import ValidationError
 from jsonschema.validators import validate
 from loguru import logger as log
-from sm_ms_api import SMMS
+from sm_ms_api import SMMS, ImageUploadError
 from yaml import safe_load
 from PIL import Image
 from .exception import UnsupportedTagList, InvalidYAMLDataError
@@ -54,18 +54,21 @@ class RateLimiter:
 
 
 def upload_img(path: str):
+    print(path)
     smms = SMMS(token=config.sm_ms_token)
     # sleep(random.randint(1, 7))
-    img = Image.open(path)
-    if img.format != 'gif':
-        img.thumbnail((1000, 1000))
-        image_bytes = BytesIO()
-        img.save(image_bytes, format="png")
-    else:
-        img.close()
-        return smms.upload_image(path)
-    res = smms.upload_image(image_bytes, Path(path).name)
-    return res
+    if Path(path).stat().st_size > 512 * 1024:
+        img = Image.open(path)
+        if img.format != "gif":
+            img.thumbnail((1000, 1000))
+            image_bytes = BytesIO()
+            img.save(image_bytes, format="png")
+        else:
+            img.close()
+            return smms.upload_image(path)
+        res = smms.upload_image(image_bytes, Path(path).name)
+        return res
+    return smms.upload_image(path)
 
 
 def logger(func):
@@ -208,6 +211,9 @@ class Converter:
 
     def convert(self):
         global folder_created
+        if (self.output / "games" / (self.game_name + ".yaml")).exists():
+            log.info("YAML文件已经存在，跳过")
+            return
         self.compare_tags()
         log.success("没有冲突的标签")
         is_ok = self.validate_it()
@@ -262,7 +268,7 @@ class Converter:
         处理游戏截图
         """
 
-        @RateLimiter(max_calls=15, seconds=60)
+        @RateLimiter(max_calls=10, seconds=60)
         def handle_img(chunk: dict | str, retry: int = 0) -> dict | str:
             try:
                 if "type" in chunk and "path" in chunk:
@@ -281,7 +287,12 @@ class Converter:
                 if retry == 3:
                     log.error(self.path("assets") / self.game_name / chunk["path"])
                     raise e
-                log.warning(f"Image upload error({e.__class__.__name__}),retrying...")
+                if type(e) != ImageUploadError:
+                    log.warning(
+                        f"Image upload error({e.__class__.__name__}),retrying..."
+                    )
+                else:
+                    log.warning(e)
                 sleep(3)
                 retry += 1
                 return handle_img(chunk, retry)
