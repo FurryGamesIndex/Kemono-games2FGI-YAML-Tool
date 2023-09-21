@@ -123,7 +123,7 @@ class Converter:
             )
             img.close()
             return
-        img.thumbnail((360, 168))
+        img.resize((360, 168))
         img.save(
             self.output / self.paths["assets"] / self.game_name / thumbnail_path.name,
             optimize=True,
