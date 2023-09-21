@@ -57,9 +57,13 @@ def upload_img(path: str):
     smms = SMMS(token=config.sm_ms_token)
     # sleep(random.randint(1, 7))
     img = Image.open(path)
-    img.thumbnail((1000, 1000))
-    image_bytes = BytesIO()
-    img.save(image_bytes, format="png")
+    if img.format != 'gif':
+        img.thumbnail((1000, 1000))
+        image_bytes = BytesIO()
+        img.save(image_bytes, format="png")
+    else:
+        img.close()
+        return smms.upload_image(path)
     res = smms.upload_image(image_bytes, Path(path).name)
     return res
 
