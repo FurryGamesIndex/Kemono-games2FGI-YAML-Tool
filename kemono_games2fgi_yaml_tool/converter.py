@@ -262,7 +262,7 @@ class Converter:
         处理游戏截图
         """
 
-        # @RateLimiter(max_calls=15, seconds=60)
+        @RateLimiter(max_calls=15, seconds=60)
         def handle_img(chunk: dict | str, retry: int = 0) -> dict | str:
             try:
                 if "type" in chunk and "path" in chunk:
