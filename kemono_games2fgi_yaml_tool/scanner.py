@@ -4,7 +4,7 @@ from pathlib import Path
 from loguru import logger
 
 
-def compare(kemono: Path, fgi: Path):
+def compare(kemono: Path, fgi: Path, quiet: bool = False):
     from .utils.setting import config
 
     if kemono is None:
@@ -12,7 +12,10 @@ def compare(kemono: Path, fgi: Path):
     files1 = set(listdir(kemono))
     files2 = set(listdir(fgi))
     result1 = list(files1 - files2)
-    result2 = [kemono / missing_file for missing_file in result1]
+    result2 = [str(kemono / missing_file) for missing_file in result1]
     for i in result1:
-        logger.info(f"发现 {i} 不存在")
+        if not quiet:
+            logger.info(f"发现 {i} 不存在")
+    if quiet:
+        print("\n".join(result2))
     return result2

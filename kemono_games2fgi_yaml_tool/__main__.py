@@ -1,7 +1,6 @@
 import argparse
 from argparse import RawTextHelpFormatter
 from os.path import dirname
-from loguru import logger
 from pathlib import Path
 
 from .converter import Converter
@@ -36,10 +35,9 @@ exclusive1.add_argument(
     metavar="SINGLE_FILE",
     help="Whether to convert only a single yaml file (this option conflicts with --input)",
 )
-
-parser.add_argument("-o", "--output", type=str, required=True)
-
-exclusive2 = parser.add_mutually_exclusive_group(required=True)
+parser.add_argument("--only-scan", action="store_true", default=False)
+parser.add_argument("-o", "--output", type=str)
+exclusive2 = parser.add_mutually_exclusive_group()
 exclusive2.add_argument(
     "-f",
     "--config",
@@ -55,6 +53,11 @@ exclusive2.add_argument(
 )
 
 args = parser.parse_args()
+if not args.only_scan:
+    if not args.output:
+        parser.error("--output is required")
+    if not (args.config or getattr(args, "sm.ms")):
+        parser.error("--config or --sm.ms is required")
 if args.config:
     if not args.single:
         config.load(args.config)
@@ -78,7 +81,10 @@ else:
                 "base_path": Path(dirname(args.single)).parent,
             }
         )
-logger.info("\n" + str(config))
+# logger.info("\n" + str(config))
+if args.only_scan:
+    compare(Path(args.input[1]) / "games", Path(args.input[0]) / "games", quiet=True)
+    exit()
 if not args.single:
     result = compare(Path(args.input[1]) / "games", Path(args.input[0]) / "games")
     for i in result:
