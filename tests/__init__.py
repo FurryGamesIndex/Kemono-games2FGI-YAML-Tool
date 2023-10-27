@@ -23,7 +23,7 @@ class Test(unittest.TestCase):
         compare(fgi="/media/Data/Project/games/games")
 
     def test_convert_game(self):
-        convert = Converter(
+        Converter(
             yaml="/home/askirin/Desktop/changes/games/Shared_House.yaml",
             output="/home/askirin/Desktop/test/",
         ).convert()

@@ -11,9 +11,6 @@ class Config:
     git_proxy: str | None
     base_path: str = ""
 
-    def __init__(self):
-        self.__dict__.update(default_config)
-
     def load(self, setting: dict | str):
         if isinstance(setting, dict):
             self.__dict__.update(setting)
@@ -38,3 +35,4 @@ class Config:
 
 default_config = {"proxy": None, "git_proxy": None}
 config = Config()
+config.__dict__.update(default_config)
