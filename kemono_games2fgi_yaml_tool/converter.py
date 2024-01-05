@@ -13,6 +13,7 @@ from sm_ms_api import SMMS, ImageUploadError
 from yaml import safe_load
 from PIL import Image
 from .exception import UnsupportedTagList, InvalidYAMLDataError
+from .utils import PathLike
 from .utils.setting import config
 from .utils.spider import get_text
 from .utils.yaml_tool import dump_to_yaml, load_yaml
@@ -53,7 +54,7 @@ class RateLimiter:
         return wrapper
 
 
-def upload_img(path: str):
+def upload_img(path: PathLike):
     print(path)
     smms = SMMS(token=config.sm_ms_token)
     # sleep(random.randint(1, 7))
@@ -91,7 +92,7 @@ class Converter:
         "_avatar": "assets/_avatar",
     }
 
-    def __init__(self, yaml: str, output: str):
+    def __init__(self, yaml: PathLike, output: PathLike):
         self.data = load_yaml(yaml)
         self.yaml = yaml
         self.game_name = Path(yaml).stem
@@ -143,7 +144,7 @@ class Converter:
             elif (self.path("_avatar") / (i["name"] + ".png")).exists():
                 return self.path("_avatar") / (author_name + ".png")
 
-        def process_avatar(input_path: Path, output: Path):
+        def process_avatar(input_path: PathLike, output: PathLike):
             with Image.open(input_path) as img:
                 img.thumbnail((64, 64))
                 img.save(output)
@@ -218,6 +219,9 @@ class Converter:
         log.success("没有冲突的标签")
         is_ok = self.validate_it()
         if not is_ok:
+            if not self.data["screenshots"]:
+                log.error("该游戏没有截图，跳过")
+                return
             self.process_screenshots()
         if not folder_created:
             self.mkdirs()
@@ -293,7 +297,6 @@ class Converter:
                     )
                 else:
                     log.warning(e)
-                sleep(3)
                 retry += 1
                 return handle_img(chunk, retry)
 
@@ -310,10 +313,18 @@ class Converter:
             return chunk
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            new_screenshots = list(
-                executor.map(process_chunk, self.data["screenshots"])
-            )
-            self.data["screenshots"] = new_screenshots
+            new_screenshots = [
+                executor.submit(process_chunk, i) for i in self.data["screenshots"]
+            ]
+            real_data = []
+            for n, i in enumerate(new_screenshots):
+                try:
+                    real_data.append(i.result(timeout=30))
+                except concurrent.futures.TimeoutError:
+                    log.error(
+                        f"TimeoutError:{self.path('assets') / self.data['screenshots'][n]['path']}"
+                    )
+            self.data["screenshots"] = real_data
 
     # noinspection PyBroadException
     def validate_it(self) -> bool:

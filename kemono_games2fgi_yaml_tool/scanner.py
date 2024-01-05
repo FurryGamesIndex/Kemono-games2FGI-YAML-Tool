@@ -3,12 +3,17 @@ from pathlib import Path
 
 from loguru import logger
 
+from kemono_games2fgi_yaml_tool import PathLike
 
-def compare(kemono: Path, fgi: Path, quiet: bool = False):
+
+def compare(kemono: PathLike, fgi: PathLike, quiet: bool = False):
     from .utils.setting import config
 
     if kemono is None:
         kemono = Path(config.base_path) / "games"
+    if isinstance(kemono, str) or isinstance(fgi, str):
+        kemono = Path(kemono)
+        fgi = Path(fgi)
     files1 = set(listdir(kemono))
     files2 = set(listdir(fgi))
     result1 = list(files1 - files2)

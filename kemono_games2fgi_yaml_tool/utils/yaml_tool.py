@@ -4,6 +4,8 @@ from ruamel.yaml import YAML
 from ruamel.yaml.scalarstring import PreservedScalarString
 from yaml import safe_load
 
+from . import PathLike
+
 
 # from gameyamlspiderandgenerator.util.fgi_yaml
 
@@ -28,7 +30,7 @@ def dump_to_yaml(data: dict) -> str:
     return temp.replace("description: |-", "description: |")
 
 
-def load_yaml(path: str) -> dict:
+def load_yaml(path: PathLike) -> dict:
     with open(path, encoding="utf-8") as fp:
         data = safe_load(fp.read())
     return data

@@ -20,7 +20,10 @@ class Test(unittest.TestCase):
     def test_cmp(self):
         from kemono_games2fgi_yaml_tool.scanner import compare
 
-        compare(fgi="/media/Data/Project/games/games")
+        compare(
+            kemono="/media/Data/Project/fgi-master/games",
+            fgi="/media/Data/Project/games/games",
+        )
 
     def test_convert_game(self):
         Converter(

@@ -2,6 +2,7 @@ from yaml import dump
 from pathlib import Path
 
 from .yaml_tool import load_yaml
+from . import PathLike
 from ..exception import FolderStructureError
 
 
@@ -9,9 +10,9 @@ class Config:
     sm_ms_token: str | None
     proxy: dict | None
     git_proxy: str | None
-    base_path: str = ""
+    base_path: PathLike = ""
 
-    def load(self, setting: dict | str):
+    def load(self, setting: dict | PathLike):
         if isinstance(setting, dict):
             self.__dict__.update(setting)
         else:
