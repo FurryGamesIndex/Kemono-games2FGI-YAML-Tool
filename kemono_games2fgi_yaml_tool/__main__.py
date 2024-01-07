@@ -3,6 +3,8 @@ from argparse import RawTextHelpFormatter
 from os.path import dirname
 from pathlib import Path
 
+from loguru import logger
+
 from .converter import Converter
 from .scanner import compare
 from .utils.setting import config, default_config
@@ -36,6 +38,21 @@ exclusive1.add_argument(
 )
 parser.add_argument("--only-scan", action="store_true", default=False)
 parser.add_argument("-o", "--output", type=str)
+parser.add_argument(
+    "--log",
+    dest="log_file",
+    metavar="LOG_FILE",
+    type=str,
+    help="Specify the log file name.",
+)
+parser.add_argument(
+    "--log-level",
+    dest="log_level",
+    metavar="LOG_LEVEL",
+    type=str,
+    choices=["INFO", "WARNING", "ERROR"],
+    help="Specify the log level (INFO, WARNING, ERROR). Requires --log.",
+)
 exclusive2 = parser.add_mutually_exclusive_group()
 exclusive2.add_argument(
     "-f",
@@ -52,6 +69,10 @@ exclusive2.add_argument(
 )
 
 args = parser.parse_args()
+if args.log_level and not args.log_file:
+    parser.error("--log-level requires --log to be specified.")
+if args.log_file:
+    logger.add(args.log_file, level=args.log_level if args.log_level else "INFO")
 if not args.only_scan:
     if not args.output:
         parser.error("--output is required")
