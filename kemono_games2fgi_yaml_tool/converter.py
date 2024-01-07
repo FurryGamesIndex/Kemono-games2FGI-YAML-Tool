@@ -23,35 +23,37 @@ tag_cache: dict = {}
 folder_created = False
 
 
-class RateLimiter:
-    def __init__(self, max_calls=20, seconds=60):
-        self.max_calls = max_calls
-        self.seconds = seconds
-        self.lock = threading.Lock()
-        self.calls = 0
-        self.last_reset = time()
+def rate_limited(max_calls: int, period: int):
+    lock = threading.Lock()
+    last_reset_time = time()
+    calls = 0
 
-    def __call__(self, func):
+    def decorator(func):
         def wrapper(*args, **kwargs):
-            with self.lock:
+            nonlocal calls, last_reset_time
+
+            with lock:
                 current_time = time()
-                elapsed_time = current_time - self.last_reset
 
-                if elapsed_time >= self.seconds:
-                    self.calls = 0
-                    self.last_reset = current_time
+                # 如果距离上次重置时间已经过了一个周期，重置计数器
+                if current_time - last_reset_time > period:
+                    calls = 0
+                    last_reset_time = current_time
 
-                if self.calls >= self.max_calls:
-                    time_to_wait = self.seconds - elapsed_time
-                    if time_to_wait > 0:
-                        sleep(time_to_wait)
-                        self.calls = 0
-                        self.last_reset = time()
+                # 检查是否超过了调用限制
+                if calls >= max_calls:
+                    # 如果超过限制，等待到下一个周期再重试
+                    sleep(last_reset_time + period - current_time)
+                    calls = 0
+                    last_reset_time = time()
 
-                self.calls += 1
-                return func(*args, **kwargs)
+                calls += 1
+
+            return func(*args, **kwargs)
 
         return wrapper
+
+    return decorator
 
 
 def upload_img(path: PathLike):
@@ -219,9 +221,6 @@ class Converter:
         log.success("没有冲突的标签")
         is_ok = self.validate_it()
         if not is_ok:
-            if not self.data["screenshots"]:
-                log.error("该游戏没有截图，跳过")
-                return
             self.process_screenshots()
         if not folder_created:
             self.mkdirs()
@@ -234,6 +233,10 @@ class Converter:
         self.copy_i18n()
         self.copy_thumbnail()
         if not is_ok:
+            if not self.data["screenshots"]:
+                log.error("该游戏没有截图，跳过")
+                return
+            # print(self.data["screenshots"])
             self.convert_yaml()
         else:
             copy(
@@ -272,7 +275,7 @@ class Converter:
         处理游戏截图
         """
 
-        @RateLimiter(max_calls=10, seconds=60)
+        @rate_limited(max_calls=5, period=60)
         def handle_img(chunk: dict | str, retry: int = 0) -> dict | str:
             try:
                 if "type" in chunk and "path" in chunk:
@@ -319,10 +322,13 @@ class Converter:
             real_data = []
             for n, i in enumerate(new_screenshots):
                 try:
-                    real_data.append(i.result(timeout=30))
+                    item = i.result(timeout=120)
+                    if not item:
+                        continue
+                    real_data.append(item)
                 except concurrent.futures.TimeoutError:
                     log.error(
-                        f"TimeoutError:{self.path('assets') / self.data['screenshots'][n]['path']}"
+                        f"TimeoutError: {self.path('assets') /self.game_name / self.data['screenshots'][n]['path']}"
                     )
             self.data["screenshots"] = real_data
 
@@ -337,6 +343,7 @@ class Converter:
                         ".schema.yaml"
                     )
                 )
+
             validate(self.data, schema_cache),
             return True
         except exceptions.ValidationError:
