@@ -1,8 +1,10 @@
-from yaml import dump
+import multiprocessing
 from pathlib import Path
 
-from .yaml_tool import load_yaml
+from yaml import dump
+
 from . import PathLike
+from .yaml_tool import load_yaml
 from ..exception import FolderStructureError
 
 
@@ -11,6 +13,7 @@ class Config:
     proxy: dict | None
     git_proxy: str | None
     base_path: PathLike = ""
+    max_threads: int
 
     def load(self, setting: dict | PathLike):
         if isinstance(setting, dict):
@@ -34,6 +37,10 @@ class Config:
         return self.__dict__[item]
 
 
-default_config = {"proxy": None, "git_proxy": None}
+default_config = {
+    "proxy": None,
+    "git_proxy": None,
+    "max_threads": multiprocessing.cpu_count(),
+}
 config = Config()
 config.__dict__.update(default_config)

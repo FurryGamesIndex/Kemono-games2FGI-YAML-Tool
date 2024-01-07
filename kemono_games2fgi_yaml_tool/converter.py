@@ -2,16 +2,18 @@ import concurrent.futures
 import threading
 from io import BytesIO
 from pathlib import Path
+from shutil import copy
 from time import time, sleep
 from typing import Literal
-from shutil import copy
+
+from PIL import Image
 from jsonschema import exceptions
 from jsonschema.exceptions import ValidationError
 from jsonschema.validators import validate
 from loguru import logger as log
 from sm_ms_api import SMMS, ImageUploadError
 from yaml import safe_load
-from PIL import Image
+
 from .exception import UnsupportedTagList, InvalidYAMLDataError
 from .utils import PathLike
 from .utils.setting import config
@@ -85,7 +87,7 @@ def logger(func):
 
 class Converter:
     tags: dict = {}
-    paths: dict = {
+    __paths: dict = {
         "cn": "games/l10n/zh-cn",
         "ja": "games/l10n/ja",
         "tw": "games/l10n/zh-tw",
@@ -120,7 +122,7 @@ class Converter:
             copy(
                 thumbnail_path,
                 self.output
-                / self.paths["assets"]
+                / self.__paths["assets"]
                 / self.game_name
                 / thumbnail_path.name,
             )
@@ -128,7 +130,7 @@ class Converter:
             return
         img.resize((360, 168))
         img.save(
-            self.output / self.paths["assets"] / self.game_name / thumbnail_path.name,
+            self.output / self.__paths["assets"] / self.game_name / thumbnail_path.name,
             optimize=True,
             quality=100,
         )
@@ -156,13 +158,13 @@ class Converter:
             if author_path.exists():
                 copy(
                     author_path,
-                    self.output / self.paths["authors"] / (i["name"] + ".yaml"),
+                    self.output / self.__paths["authors"] / (i["name"] + ".yaml"),
                 )
                 path = get_image(i["name"])
                 if path is not None:
                     process_avatar(
                         get_image(i["name"]),
-                        self.output / self.paths["_avatar"] / path.name,
+                        self.output / self.__paths["_avatar"] / path.name,
                     )
 
     @logger
@@ -171,10 +173,10 @@ class Converter:
         转换多国语言翻译
         """
         for i in ["cn", "ja", "tw"]:
-            if (self.base_path / self.paths[i] / (self.game_name + ".yaml")).exists():
+            if (self.base_path / self.__paths[i] / (self.game_name + ".yaml")).exists():
                 copy(
                     self.path(i) / (self.game_name + ".yaml"),
-                    self.output / self.paths[i] / (self.game_name + ".yaml"),
+                    self.output / self.__paths[i] / (self.game_name + ".yaml"),
                 )
 
     @logger
@@ -209,7 +211,7 @@ class Converter:
         """
         新建文件夹
         """
-        for i in self.paths.values():
+        for i in self.__paths.values():
             Path(self.output / i).mkdir(parents=True, exist_ok=True)
 
     def convert(self):
@@ -225,7 +227,7 @@ class Converter:
         if not folder_created:
             self.mkdirs()
             folder_created = True
-        Path(self.output / self.paths["assets"] / self.game_name).mkdir(
+        Path(self.output / self.__paths["assets"] / self.game_name).mkdir(
             parents=True, exist_ok=True
         )
         if "authors" in self.data:
@@ -247,7 +249,7 @@ class Converter:
     def path(
         self, location: str = Literal["cn", "ja", "tw", "assets", "authors", "_avatar"]
     ) -> Path:
-        return self.base_path / self.paths[location]
+        return self.base_path / self.__paths[location]
 
     def parse_tags(
         self,
@@ -306,7 +308,6 @@ class Converter:
         # noinspection PyUnusedLocal
         def handle_vid(chunk: dict):
             log.warning("Unable to upload video, ignore...")
-            return []
 
         def process_chunk(chunk):
             if "type" in chunk and "image:local" in chunk["type"]:
@@ -315,7 +316,9 @@ class Converter:
                 return handle_vid(chunk)
             return chunk
 
-        with concurrent.futures.ThreadPoolExecutor() as executor:
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=config.max_threads
+        ) as executor:
             new_screenshots = [
                 executor.submit(process_chunk, i) for i in self.data["screenshots"]
             ]

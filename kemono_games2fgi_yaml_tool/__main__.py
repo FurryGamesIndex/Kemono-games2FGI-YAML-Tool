@@ -7,7 +7,6 @@ from .converter import Converter
 from .scanner import compare
 from .utils.setting import config, default_config
 
-
 parser = argparse.ArgumentParser(
     description="""
 Noun Explanation:
