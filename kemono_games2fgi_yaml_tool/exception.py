@@ -1,14 +1,18 @@
-class FolderStructureError(Exception):
+class ConverterError(Exception):
     pass
 
 
-class InvalidYAMLDataError(Exception):
+class FolderStructureError(ConverterError):
     pass
 
 
-class UnsupportedTagList(Exception):
+class InvalidYAMLDataError(ConverterError):
     pass
 
 
-class InvalidHTTPStatusCodeError(Exception):
+class UnsupportedTagList(ConverterError):
+    pass
+
+
+class InvalidHTTPStatusCodeError(ConverterError):
     pass
